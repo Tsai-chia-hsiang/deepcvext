@@ -1,16 +1,18 @@
 import torch
-from pathlib import Path
-import os
-import os.path as osp
+from torchvision import transforms as T
 import numpy as np
 import cv2
 from typing import Callable, Any, Optional
+
+__all__ = ["tensor2img", "img2tensor"]
+
+_TO_TENSOR_ = T.ToTensor()
 
 
 def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, Any], torch.Tensor]]=None, to_cv2:bool=True, **kwargs) -> np.ndarray|list[np.ndarray]:
 
     """
-    Converts a PyTorch RGB tensor image to a NumPy uint8 image.
+    Convert a PyTorch RGB tensor image to a NumPy uint8 image.
     
     This function supports both single image and batched images:
     - For a single image (C x H x W), it returns a single NumPy array with dtype uint8.
@@ -27,7 +29,7 @@ def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, 
         - If no scaling is needed, set this to `None`. Defaults to `None`.
         - The function should have the signature: 
             - `scale_back_f(timg: torch.Tensor, **kwargs) -> torch.Tensor`
-    - to_cv2 (bool, optional): 
+    - to_cv2 (bool, Default True): 
         If `True`, converts the output image(s) to BGR format (for use with OpenCV).
         If `False`, the output image(s) remain in RGB format. Defaults to `True`.
     - **kwargs: 
@@ -62,3 +64,46 @@ def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, 
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     
     return img
+
+
+def img2tensor(img:np.ndarray, is_cv2:bool=True, scale_f:Optional[Callable[[torch.Tensor, Any], torch.Tensor]]=None, to_batch:bool=False, **kwargs) -> torch.Tensor:
+    """
+    Convert a img from np array to pytorch tensor
+   
+    Args
+    --
+    - img: a numpy array for image
+        - note that this function is currently designed for single color img
+    - is_cv2 (bool, Default True): wether the image is in OpenCV format : BGR
+        - `True`: treate img as BGR
+        - `False`: treate img as RGB
+    - to_batch (bool, default `False`): wether adding an extra dimension as batch
+    - scale_f (Callable, Default None) : 
+        - the scale function that apply to the image
+        - The function should have the signature: 
+            - `scale_f(i: torch.Tensor, **kwargs) -> torch.Tensor`
+        - Note that it applies `ToTensor()` transform from torchvision.transform before appling it
+            - which means that image will be first divided by 255 then applies `scale_f` 
+        - Even passing `None`, it still applies `ToTensor()` by default.
+    - **kwargs: 
+        Additional parameters to be passed to `scale_f`, if specified.
+
+    Return
+    --
+    A pytorch tensor for img with shape (CxHxW) if `to_batch` is `False`, (1xCxHxW) otherwise.
+    - where C is RGB manner
+    """
+    i = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if is_cv2 else img
+    #scale to 0~1
+    i = _TO_TENSOR_(i)
+    
+    if scale_f is not None:
+        i = scale_f(i, **kwargs)
+    
+    if to_batch:
+        i = i.unsqueeze(0)
+
+    return i
+
+
+
