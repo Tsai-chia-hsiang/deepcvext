@@ -7,9 +7,9 @@ from typing import Callable, Any, Optional
 __all__ = ["tensor2img", "img2tensor"]
 
 _TO_TENSOR_ = T.ToTensor()
+_TO_IMG_ = lambda x: x*255
 
-
-def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, Any], torch.Tensor]]=None, to_cv2:bool=True, **kwargs) -> np.ndarray|list[np.ndarray]:
+def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, Any], torch.Tensor]]=_TO_IMG_, to_cv2:bool=True, **kwargs) -> np.ndarray|list[np.ndarray]:
 
     """
     Convert a PyTorch RGB tensor image to a NumPy uint8 image.
@@ -24,7 +24,7 @@ def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, 
         A PyTorch tensor representing the image(s). The input should have either:
         - Shape (C x H x W) for a single image.
         - Shape (B x C x H x W) for a batch of images.
-    - scale_back_f (Callable, optional): 
+    - scale_back_f (Callable, Default is lambda x:x*255): 
         - A function to scale the input tensor's values back to the range [0, 255].
         - If no scaling is needed, set this to `None`. Defaults to `None`.
         - The function should have the signature: 
