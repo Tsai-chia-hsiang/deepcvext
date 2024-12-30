@@ -17,7 +17,7 @@ def _to_batch(box:np.ndarray|list)->np.ndarray:
         b = np.expand_dims(b, axis=0)
     return b
 
-def scale_box(boxes:np.ndarray|list, imgsize:np.ndarray|list[int], direction:Literal['normalize', 'back']='normalize')->np.ndarray:
+def scale_box(boxes:np.ndarray|list, imgsize:np.ndarray|list, direction:Literal['normalize', 'back']='normalize')->np.ndarray:
     
     """
     Normalize or scale-back bounding boxes for a single image.
