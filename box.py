@@ -93,7 +93,7 @@ def xywh2xyxy(xywh:np.ndarray|list) -> np.ndarray:
 
     return xyxy_arr
 
-def xyxy_to_int(xyxy:np.ndarray|list) -> list:
+def xyxy2int(xyxy:np.ndarray|list) -> list:
     
     def quantize(x, i:int)->int:
         #return int(x)
@@ -104,8 +104,15 @@ def xyxy_to_int(xyxy:np.ndarray|list) -> list:
     
     return [[quantize(c, i) for i,c in enumerate(b)] for b in _to_batch(xyxy)]
 
+"""
 def draw_box(img:np.ndarray, xyxy:list, color:tuple[int,int,int]=(0,0,255), thickness=2)->None:
     int_xyxy = xyxy
     if not isinstance(xyxy[0], int):
-        int_xyxy = xyxy_to_int(xyxy=xyxy)[0]
+        int_xyxy = xyxy2int(xyxy=xyxy)[0]
     cv2.rectangle(img, int_xyxy[:2], int_xyxy[2:], color=color, thickness=thickness)
+"""
+
+def draw_boxes(img:np.ndarray, xyxy:list[list]|np.ndarray, color:tuple[int,int,int]=(0,0,255), thickness=2)->None:
+    int_xyxy = xyxy2int(xyxy=xyxy)
+    for b in int_xyxy:    
+        cv2.rectangle(img, b[:2], b[2:], color=color, thickness=thickness)
