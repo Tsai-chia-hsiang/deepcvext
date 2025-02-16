@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 import cv2
 import math
 from typing import Literal
@@ -11,13 +12,20 @@ __all__ = [
     "draw_box"
 ]
 
-def _to_batch(box:np.ndarray|list)->np.ndarray:
-    b = box if isinstance(box, np.ndarray) else np.asarray(box) 
+def _to_batch(box:np.ndarray|list|torch.Tensor)->np.ndarray|torch.Tensor:
+    b = box 
+    if isinstance(box, list):
+        b = np.asarray(box)
     if b.ndim == 1:
-        b = np.expand_dims(b, axis=0)
+        if isinstance(box, np.ndarray):
+            b = np.expand_dims(b, axis=0)
+        elif isinstance(box, torch.Tensor):
+            b = b.unsqueeze(0)
+        else:
+            raise NotImplementedError()
     return b
 
-def scale_box(boxes:np.ndarray|list, imgsize:np.ndarray|list, direction:Literal['normalize', 'back']='normalize')->np.ndarray:
+def scale_box(boxes:np.ndarray|list|torch.Tensor, imgsize:np.ndarray|list|tuple, direction:Literal['normalize', 'back']='normalize')->np.ndarray|torch.Tensor:
     
     """
     Normalize or scale-back bounding boxes for a single image.
@@ -56,33 +64,62 @@ def scale_box(boxes:np.ndarray|list, imgsize:np.ndarray|list, direction:Literal[
         ['normalize', 'back']"
     )
     
-    b = boxes if isinstance(boxes, np.ndarray) else np.asarray(boxes, dtype=np.float32)
+    b = boxes 
+    if isinstance(boxes, list) :
+        b = np.asarray(boxes, dtype=np.float32)
     
-    if b.dtype != np.float32:
-        b = b.astype(np.float32)
+    if isinstance(boxes, np.ndarray):
+        if b.dtype != np.float32:
+            b = b.astype(np.float32)
+    elif isinstance(boxes, torch.Tensor):
+        if b.dtype != torch.float32:
+            b = b.astype(torch.float32)
+    else:
+        raise NotImplementedError()
+
     b = _to_batch(b)
     n = imgsize if isinstance(imgsize, np.ndarray) else np.asarray(imgsize)
     n = np.tile(n, 2).astype(np.float32)
+    
+    if isinstance(b, torch.Tensor):
+        n = torch.from_numpy(n).to(device=b.device)
+    
     match direction:
         case 'normalize':
             return b/n
         case 'back':
             return b*n
 
-def xyxy2xywh(xyxy:np.ndarray|list) -> np.ndarray:
+def xyxy2xywh(xyxy:np.ndarray|list|torch.Tensor) -> np.ndarray|torch.Tensor:
 
-    xyxy_arr = _to_batch(xyxy).astype(np.float32)
-    xywh_arr = np.zeros_like(xyxy_arr)
+    xyxy_arr = _to_batch(xyxy)
+    xywh_arr = None 
+    if isinstance(xyxy_arr , np.ndarray):
+        xyxy_arr = xyxy_arr.astype(np.float32)
+        xywh_arr = np.zeros_like(xyxy_arr)
+    elif isinstance(xyxy_arr, torch.Tensor):
+        xyxy_arr = xyxy_arr.to(torch.float32)
+        xywh_arr = torch.zeros_like(xyxy_arr)
+    else:
+        raise NotImplementedError()
+    
     xywh_arr[:, 0] = (xyxy_arr[:, 0] + xyxy_arr[:, 2])/2 #cx
     xywh_arr[:, 1] = (xyxy_arr[:, 1] + xyxy_arr[:, 3])/2 #cy
     xywh_arr[:, 2] = (xyxy_arr[:, 2] - xyxy_arr[:, 0]) #w
     xywh_arr[:, 3] = (xyxy_arr[:, 3] - xyxy_arr[:, 1]) #h
     return xywh_arr
 
-def xywh2xyxy(xywh:np.ndarray|list) -> np.ndarray:
+def xywh2xyxy(xywh:np.ndarray|list|torch.Tensor) -> np.ndarray|torch.Tensor:
     
-    xywh_arr = _to_batch(xywh).astype(np.float32)
-    xyxy_arr = np.zeros_like(xywh_arr)
+    xywh_arr = _to_batch(xywh)
+    xyxy_arr = None 
+    if isinstance(xywh_arr, np.ndarray):
+        xywh_arr = xywh_arr.astype(np.float32)
+        xyxy_arr = np.zeros_like(xywh_arr)
+    elif isinstance(xywh_arr, torch.Tensor):
+        xywh_arr = xywh_arr.to(torch.float32)
+        xyxy_arr = torch.zeros_like(xywh_arr)
+    
     half_w = xywh_arr[:, 2] /2 
     half_h = xywh_arr[:, 3] /2
 
@@ -93,7 +130,7 @@ def xywh2xyxy(xywh:np.ndarray|list) -> np.ndarray:
 
     return xyxy_arr
 
-def xyxy2int(xyxy:np.ndarray|list) -> list:
+def xyxy2int(xyxy:np.ndarray|list|torch.Tensor) -> list:
     
     def quantize(x, i:int)->int:
         #return int(x)
@@ -102,7 +139,8 @@ def xyxy2int(xyxy:np.ndarray|list) -> list:
         else:
             return math.ceil(x)
     
-    return [[quantize(c, i) for i,c in enumerate(b)] for b in _to_batch(xyxy)]
+    xyxy_ = xyxy if not isinstance(xyxy, torch.Tensor) else xyxy.cpu().numpy()
+    return [[quantize(c, i) for i,c in enumerate(b)] for b in _to_batch(xyxy_)]
 
 
 def draw_boxes(img:np.ndarray, xyxy:list[list]|np.ndarray, color:tuple[int,int,int]=(0,0,255), thickness=2)->None:
