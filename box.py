@@ -153,7 +153,7 @@ def draw_boxes(img:np.ndarray, xyxy:list[list]|np.ndarray, color:tuple[int,int,i
 
 
 
-def ultralytics_yolobatch_draw_boxes(batch, save_to:Path=None, return_img_lst:bool=False) -> None|list[np.ndarray]:
+def ultralytics_yolobatch_draw_boxes(batch, save_to:Path=None, return_img_lst:bool=False, need_scale=False) -> None|list[np.ndarray]:
     """
     special design for Ultraytics YOLODataset batch
     - mainly for debug purpose
@@ -161,7 +161,6 @@ def ultralytics_yolobatch_draw_boxes(batch, save_to:Path=None, return_img_lst:bo
     Arg:
     -- 
     - batch: (dict): A default batch ultrayltics YOLODataset dataloader
-        - Note that in ultrayltics, img tensor is not normalized(/255) yet
     - save_to: (Path, default `None`): Root for save those images for `batch`
     - return_img_lst: (bool, default `False`): Whether to return the batch of images with drawn bounding boxes. 
     
@@ -178,7 +177,7 @@ def ultralytics_yolobatch_draw_boxes(batch, save_to:Path=None, return_img_lst:bo
     for i, timg in enumerate(batch['img']):
         idx_mask:torch.Tensor = torch.where(batch['batch_idx'] == i)[0]
         its_boxes:torch.Tensor = batch['bboxes'][idx_mask]
-        img = tensor2img(timg, scale_back_f=lambda x:x)
+        img = tensor2img(timg, scale_back_f=lambda x:x*255 if need_scale else lambda x:x)
         xyxy = xywh2xyxy(xywh=its_boxes.cpu().detach().numpy())
         draw_boxes(img=img, xyxy=scale_box(xyxy, imgsize=np.asarray(img.shape[:2][::-1]), direction='back'))
         if save_to is not None:

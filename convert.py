@@ -1,6 +1,7 @@
 import torch
 from torchvision import transforms as T
 import numpy as np
+import inspect
 import cv2
 from typing import Callable, Any, Optional
 
@@ -50,7 +51,13 @@ def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, 
         raise ValueError(f"Expected tensor with xpected tensor with ndim=3 or 4, but got ndim={timg.ndim}")
 
     t0 = timg.detach().cpu()
-    t0 = scale_back_f(t0, **kwargs) if scale_back_f is not None else timg
+    if scale_back_f is not None:
+        # Check if scale_back_f accepts **kwargs
+        sig = inspect.signature(scale_back_f)
+        if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+            t0 = scale_back_f(t0, **kwargs)  # Call with kwargs
+        else:
+            t0 = scale_back_f(t0)  # Call without kwargs
     
     # (B)xCxHxW -> (B)xHxWxC
     t0 = t0.permute(1, 2, 0) if t0.ndim == 3 else t0.permute(0,2,3,1)
