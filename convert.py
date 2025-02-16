@@ -18,7 +18,7 @@ def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, 
     - For a single image (C x H x W), it returns a single NumPy array with dtype uint8.
     - For a batch of images (B x C x H x W), it returns a list of NumPy arrays with dtype uint8.
 
-    Args:
+    Arg:
     --
     - timg (torch.Tensor): 
         A PyTorch tensor representing the image(s). The input should have either:
@@ -35,7 +35,7 @@ def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, 
     - **kwargs: 
         Additional parameters to be passed to `scale_back_f`, if specified.
 
-    Returns:
+    Return:
     --
     np.ndarray | list[np.ndarray]: 
         - If `timg` is a single image (C x H x W), returns a NumPy array (H x W x C).
@@ -70,7 +70,7 @@ def img2tensor(img:np.ndarray, is_cv2:bool=True, scale_f:Optional[Callable[[torc
     """
     Convert a img from np array to pytorch tensor
    
-    Args
+    Arg
     --
     - img: a numpy array for image
         - note that this function is currently designed for single color img
