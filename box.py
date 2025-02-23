@@ -8,8 +8,8 @@ __all__ = [
     "scale_box",
     "xyxy2xywh",
     "xywh2xyxy",
-    "xyxy_to_int",
-    "draw_box"
+    "xyxy2int",
+    "draw_boxes"
 ]
 
 def _to_batch(box:np.ndarray|list|torch.Tensor)->np.ndarray|torch.Tensor:
