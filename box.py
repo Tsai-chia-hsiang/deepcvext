@@ -142,6 +142,14 @@ def xyxy2int(xyxy:np.ndarray|list|torch.Tensor) -> list:
     xyxy_ = xyxy if not isinstance(xyxy, torch.Tensor) else xyxy.cpu().numpy()
     return [[quantize(c, i) for i,c in enumerate(b)] for b in _to_batch(xyxy_)]
 
+def box_geo_scale(xywh:torch.Tensor|np.ndarray, scale:float=1) -> torch.Tensor|np.ndarray:
+    xywh_ = _to_batch(xywh)
+    diag = (xywh_[:, 2]*scale)**2 + (xywh_[:, 3]*scale)**2
+    if isinstance(diag, np.ndarray):
+        return np.sqrt(diag)
+    elif isinstance(diag, torch.Tensor):
+        return torch.sqrt(diag)
+    
 
 def draw_boxes(img:np.ndarray, xyxy:list[list]|np.ndarray, color:tuple[int,int,int]=(0,0,255), thickness=2)->None:
     int_xyxy = xyxy2int(xyxy=xyxy)
