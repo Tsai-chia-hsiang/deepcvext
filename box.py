@@ -2,15 +2,8 @@ import numpy as np
 import torch
 import cv2
 import math
-from typing import Literal
+from typing import Literal, Iterable
 
-__all__ = [
-    "scale_box",
-    "xyxy2xywh",
-    "xywh2xyxy",
-    "xyxy2int",
-    "draw_boxes"
-]
 
 def _to_batch(box:np.ndarray|list|torch.Tensor)->np.ndarray|torch.Tensor:
     b = box 
@@ -25,13 +18,31 @@ def _to_batch(box:np.ndarray|list|torch.Tensor)->np.ndarray|torch.Tensor:
             raise NotImplementedError()
     return b
 
+def _to_calculate_dtype(boxes:np.ndarray|list|torch.Tensor, to_batch:bool=True)->np.ndarray|torch.Tensor:
+    b = boxes 
+    if isinstance(boxes, list) :
+        b = np.asarray(boxes, dtype=np.float32)
+    if isinstance(boxes, np.ndarray):
+        if b.dtype != np.float32:
+            b = b.astype(np.float32)
+    elif isinstance(boxes, torch.Tensor):
+        if b.dtype != torch.float32:
+            b = b.astype(torch.float32)
+    else:
+        raise NotImplementedError()
+    
+    if to_batch:
+        return _to_batch(b)
+    
+    return b
+
 def scale_box(boxes:np.ndarray|list|torch.Tensor, imgsize:np.ndarray|list|tuple, direction:Literal['normalize', 'back']='normalize')->np.ndarray|torch.Tensor:
     
     """
     Normalize or scale-back bounding boxes for a single image.
-
-    Args:
-    ----
+    
+    Arg:
+    -------
     - boxes (np.ndarray | list[list[float]]): 
         The bounding boxes within an image, represented as either a list of lists of floats or a NumPy array.
         Example:
@@ -47,7 +58,7 @@ def scale_box(boxes:np.ndarray|list|torch.Tensor, imgsize:np.ndarray|list|tuple,
         - `back`: Scales the normalized coordinates back to the original image size.
           - `original_boxes = boxes * imgsize`
 
-    Returns:
+    Return:
     -------
     np.ndarray: 
         The transformed bounding boxes as a NumPy array with `np.float32` data type, based on the specified direction.
@@ -64,20 +75,7 @@ def scale_box(boxes:np.ndarray|list|torch.Tensor, imgsize:np.ndarray|list|tuple,
         ['normalize', 'back']"
     )
     
-    b = boxes 
-    if isinstance(boxes, list) :
-        b = np.asarray(boxes, dtype=np.float32)
-    
-    if isinstance(boxes, np.ndarray):
-        if b.dtype != np.float32:
-            b = b.astype(np.float32)
-    elif isinstance(boxes, torch.Tensor):
-        if b.dtype != torch.float32:
-            b = b.astype(torch.float32)
-    else:
-        raise NotImplementedError()
-
-    b = _to_batch(b)
+    b = _to_calculate_dtype(boxes=boxes)
     n = imgsize if isinstance(imgsize, np.ndarray) else np.asarray(imgsize)
     n = np.tile(n, 2).astype(np.float32)
     
@@ -90,15 +88,32 @@ def scale_box(boxes:np.ndarray|list|torch.Tensor, imgsize:np.ndarray|list|tuple,
         case 'back':
             return b*n
 
+def shift_box(boxes:np.ndarray|list|torch.Tensor, delta_xy:tuple, format:Literal['xyxy', 'xywh']='xyxy')->np.ndarray|torch.Tensor:
+    
+    b = _to_calculate_dtype(boxes=boxes)
+    delta = np.asarray(delta_xy).astype(np.float32)
+    
+    if format == 'xyxy':
+        delta = np.tile(delta, 2)
+
+    if isinstance(b, torch.Tensor):
+        delta = torch.from_numpy(delta).to(device=b.device)
+    
+    match format: 
+        case 'xyxy':
+            b += delta
+        case 'xywh':
+            b[:, :2] += delta
+    
+    return b
+    
 def xyxy2xywh(xyxy:np.ndarray|list|torch.Tensor) -> np.ndarray|torch.Tensor:
 
-    xyxy_arr = _to_batch(xyxy)
+    xyxy_arr = _to_calculate_dtype(xyxy)
     xywh_arr = None 
     if isinstance(xyxy_arr , np.ndarray):
-        xyxy_arr = xyxy_arr.astype(np.float32)
         xywh_arr = np.zeros_like(xyxy_arr)
     elif isinstance(xyxy_arr, torch.Tensor):
-        xyxy_arr = xyxy_arr.to(torch.float32)
         xywh_arr = torch.zeros_like(xyxy_arr)
     else:
         raise NotImplementedError()
@@ -111,13 +126,11 @@ def xyxy2xywh(xyxy:np.ndarray|list|torch.Tensor) -> np.ndarray|torch.Tensor:
 
 def xywh2xyxy(xywh:np.ndarray|list|torch.Tensor) -> np.ndarray|torch.Tensor:
     
-    xywh_arr = _to_batch(xywh)
+    xywh_arr = _to_calculate_dtype(xywh)
     xyxy_arr = None 
     if isinstance(xywh_arr, np.ndarray):
-        xywh_arr = xywh_arr.astype(np.float32)
         xyxy_arr = np.zeros_like(xywh_arr)
     elif isinstance(xywh_arr, torch.Tensor):
-        xywh_arr = xywh_arr.to(torch.float32)
         xyxy_arr = torch.zeros_like(xywh_arr)
     
     half_w = xywh_arr[:, 2] /2 
@@ -150,10 +163,22 @@ def box_geo_scale(xywh:torch.Tensor|np.ndarray, scale:float=1) -> torch.Tensor|n
     elif isinstance(diag, torch.Tensor):
         return torch.sqrt(diag)
     
-
-def draw_boxes(img:np.ndarray, xyxy:list[list]|np.ndarray, color:tuple[int,int,int]=(0,0,255), thickness=2)->None:
+def draw_boxes(img:np.ndarray, xyxy:list[list]|np.ndarray, color:Iterable[tuple[int,int,int]]=None, label:Iterable[str]=None, box_thickness:int=1,text_thickness=2)->None:
     int_xyxy = xyxy2int(xyxy=xyxy)
-    for b in int_xyxy:    
-        cv2.rectangle(img, b[:2], b[2:], color=color, thickness=thickness)
+    c = color
+    if c is None:
+        c = [(0,0,255) for i in range(len(int_xyxy))]
+    else:
+        assert len(c) == len(int_xyxy)
 
+    l = label
+    if label is not None:
+        assert len(l) == len(int_xyxy)
+    else:
+        l = [None]*len(int_xyxy)
+        
+    for b,ci,li  in zip(int_xyxy, c, l):    
+        cv2.rectangle(img, b[:2], b[2:], color=ci, thickness=box_thickness)
+        if li is not None:
+            cv2.putText(img, li,(b[0], b[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, ci, thickness=text_thickness)
 
