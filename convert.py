@@ -53,12 +53,9 @@ def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, 
     t0 = timg.detach().cpu()
     if scale_back_f is not None:
         # Check if scale_back_f accepts **kwargs
-        sig = inspect.signature(scale_back_f)
-        if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
-            t0 = scale_back_f(t0, **kwargs)  # Call with kwargs
-        else:
-            t0 = scale_back_f(t0)  # Call without kwargs
-    
+        s_args = kwargs if len(kwargs) else {}
+        t0 = scale_back_f(t0, **s_args)  # Call with kwargs
+
     # (B)xCxHxW -> (B)xHxWxC
     t0 = t0.permute(1, 2, 0) if t0.ndim == 3 else t0.permute(0,2,3,1)
     img:np.ndarray = t0.numpy()
