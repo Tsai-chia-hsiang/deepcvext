@@ -1,8 +1,12 @@
 import cv2
 import numpy as np
-from pathlib import Path
+from typing import  Iterable
+from .box import xyxy2int
 
-def canvas(imlist:list[np.ndarray], hbar:int=10, wbar:int=10, row:int=2, save_to:Path=None, need_return:bool=True) -> np.ndarray|None:
+_MAX_CLASSES = 500 
+_Ccolors = None
+
+def canvas(imlist:list[np.ndarray], hbar:int=10, wbar:int=10, row:int=2) -> np.ndarray:
     
     h = np.zeros((imlist[0].shape[0], hbar, 3), dtype=np.uint8)
     w = np.zeros((wbar, imlist[0].shape[1]*row + hbar*(row-1), 3), dtype=np.uint8)
@@ -12,7 +16,7 @@ def canvas(imlist:list[np.ndarray], hbar:int=10, wbar:int=10, row:int=2, save_to
     if extra > 0:
         imlist_ = [i.copy() for i in imlist]
         to_pad = row - extra
-        pimg = np.zeros_like(imlist[0])
+        pimg = np.ones_like(imlist[0])*255
         for i in range(to_pad):
             imlist_.append(pimg)
      
@@ -29,8 +33,39 @@ def canvas(imlist:list[np.ndarray], hbar:int=10, wbar:int=10, row:int=2, save_to
             c = a_row.copy()
         else:
             c = cv2.vconcat([c, w, a_row])
-    if save_to is not None:
-        cv2.imwrite(save_to, c)
-    if need_return:
-        return c
 
+    return c
+
+def draw_boxes(img:np.ndarray, xyxy:list[list]|np.ndarray, color:Iterable[tuple[int,int,int]]=None, label:Iterable[str]=None, box_thickness:int=1,text_thickness=2)->None:
+    int_xyxy = xyxy2int(xyxy=xyxy)
+    c = color
+    if c is None:
+        c = [(0,0,255) for i in range(len(int_xyxy))]
+    else:
+        assert len(c) == len(int_xyxy)
+
+    l = label
+    if label is not None:
+        assert len(l) == len(int_xyxy)
+    else:
+        l = [None]*len(int_xyxy)
+        
+    for b,ci,li  in zip(int_xyxy, c, l):    
+        cv2.rectangle(img, b[:2], b[2:], color=ci, thickness=box_thickness)
+        if li is not None:
+            cv2.putText(img, li,(b[0], b[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, ci, thickness=text_thickness)
+
+def draw_segmentation_map(labels:np.ndarray, target_cids:Iterable[int]=None) -> np.ndarray:
+    global _Ccolors
+    color_map = np.zeros((*labels.shape[:2], 3), dtype=np.uint8)  # Color image
+    
+    t = target_cids if target_cids is not None else np.unique(labels).tolist()
+    
+    if _Ccolors is None:
+        _ = np.random.default_rng(42)
+        _Ccolors = np.random.randint(0, 256, size=(_MAX_CLASSES, 3), dtype=np.uint8)
+
+    for  i in t:
+        color_map[labels == i] = _Ccolors[i%_MAX_CLASSES]
+    
+    return color_map
