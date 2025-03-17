@@ -1,24 +1,10 @@
 import numpy as np
 import torch
-import cv2
 import math
-from typing import Literal, Iterable
+from typing import Literal
+from .utils import to_batch
 
-
-def _to_batch(box:np.ndarray|list|torch.Tensor)->np.ndarray|torch.Tensor:
-    b = box 
-    if isinstance(box, list):
-        b = np.asarray(box)
-    if b.ndim == 1:
-        if isinstance(box, np.ndarray):
-            b = np.expand_dims(b, axis=0)
-        elif isinstance(box, torch.Tensor):
-            b = b.unsqueeze(0)
-        else:
-            raise NotImplementedError()
-    return b
-
-def _to_calculate_dtype(boxes:np.ndarray|list|torch.Tensor, to_batch:bool=True)->np.ndarray|torch.Tensor:
+def _to_calculate_dtype(boxes:np.ndarray|list|torch.Tensor, batch:bool=True)->np.ndarray|torch.Tensor:
     b = boxes 
     if isinstance(boxes, list) :
         b = np.asarray(boxes, dtype=np.float32)
@@ -31,8 +17,8 @@ def _to_calculate_dtype(boxes:np.ndarray|list|torch.Tensor, to_batch:bool=True)-
     else:
         raise NotImplementedError()
     
-    if to_batch:
-        return _to_batch(b)
+    if batch:
+        return to_batch(b)
     
     return b
 
@@ -153,32 +139,13 @@ def xyxy2int(xyxy:np.ndarray|list|torch.Tensor) -> list:
             return math.ceil(x)
     
     xyxy_ = xyxy if not isinstance(xyxy, torch.Tensor) else xyxy.cpu().numpy()
-    return [[quantize(c, i) for i,c in enumerate(b)] for b in _to_batch(xyxy_)]
+    return [[quantize(c, i) for i,c in enumerate(b)] for b in to_batch(xyxy_)]
 
 def box_geo_scale(xywh:torch.Tensor|np.ndarray, scale:float=1) -> torch.Tensor|np.ndarray:
-    xywh_ = _to_batch(xywh)
+    xywh_ = to_batch(xywh)
     diag = (xywh_[:, 2]*scale)**2 + (xywh_[:, 3]*scale)**2
     if isinstance(diag, np.ndarray):
         return np.sqrt(diag)
     elif isinstance(diag, torch.Tensor):
         return torch.sqrt(diag)
     
-def draw_boxes(img:np.ndarray, xyxy:list[list]|np.ndarray, color:Iterable[tuple[int,int,int]]=None, label:Iterable[str]=None, box_thickness:int=1,text_thickness=2)->None:
-    int_xyxy = xyxy2int(xyxy=xyxy)
-    c = color
-    if c is None:
-        c = [(0,0,255) for i in range(len(int_xyxy))]
-    else:
-        assert len(c) == len(int_xyxy)
-
-    l = label
-    if label is not None:
-        assert len(l) == len(int_xyxy)
-    else:
-        l = [None]*len(int_xyxy)
-        
-    for b,ci,li  in zip(int_xyxy, c, l):    
-        cv2.rectangle(img, b[:2], b[2:], color=ci, thickness=box_thickness)
-        if li is not None:
-            cv2.putText(img, li,(b[0], b[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, ci, thickness=text_thickness)
-
