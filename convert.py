@@ -1,16 +1,51 @@
 import torch
 from torchvision import transforms as T
 import numpy as np
-import inspect
 import cv2
-from typing import Callable, Any, Optional
+
+try:
+    import jax
+    import jax.numpy as jnp
+except:
+    pass
+
+from typing import Callable, Any, Optional, Literal
 
 __all__ = ["tensor2img", "img2tensor"]
 
-_TO_TENSOR_ = T.ToTensor()
-_TO_IMG_ = lambda x: x*255
 
-def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, Any], torch.Tensor]]=_TO_IMG_, to_cv2:bool=True, **kwargs) -> np.ndarray|list[np.ndarray]:
+_IMG_NORMALIZE_= lambda x: x/255
+_TO_IMG_ = lambda x: np.clip(x, 0, 1)*255
+
+def cvtcolor_to_dl(img:np.ndarray)->np.ndarray:
+    if img.ndim == 3 and img.shape[-1] == 3:
+        return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    else:
+        # gray scale:
+        return np.expand_dims(img, axis=-1)  
+    
+def _to_dl_frame(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, to_batch:bool=True)->np.ndarray:
+    if isinstance(img, list):
+        i = np.stack([cvtcolor_to_dl(img_i) if is_cv2 else img_i for img_i in img], axis=0)
+    elif isinstance(img, np.ndarray):
+        assert img.ndim < 4 , f"If wanting batch, using list[np.ndarray] over stacking np.ndarry to 4d array"
+        i = cvtcolor_to_dl(img) if is_cv2 else img
+    else:
+        raise NotImplementedError(f"no {type(img)} such a class support")
+    if to_batch:
+        i = np.expand_dims(i, axis=0)
+    return i.astype(np.float32)
+
+def _img_debatch(img:np.ndarray, to_cv2:bool=True) -> list[np.ndarray]|np.ndarray:
+      img = np.clip(img, 0, 255).astype(np.uint8)
+      match img.ndim:
+        case 4:
+            return [cv2.cvtColor(i, cv2.COLOR_RGB2BGR) if to_cv2 else i for i in img]
+        case 3:
+            return cv2.cvtColor(img, cv2.COLOR_RGB2BGR) if to_cv2 else img
+    
+
+def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[np.ndarray, Any], np.ndarray]]=_TO_IMG_, to_cv2:bool=True, **scale_back_kwargs) -> np.ndarray|list[np.ndarray]:
 
     """
     Convert a PyTorch RGB tensor image to a NumPy uint8 image.
@@ -51,29 +86,17 @@ def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, 
         raise ValueError(f"Expected tensor with xpected tensor with ndim=3 or 4, but got ndim={timg.ndim}")
 
     t0 = timg.detach().cpu()
-    if scale_back_f is not None:
-        # Check if scale_back_f accepts **kwargs
-        s_args = kwargs if len(kwargs) else {}
-        t0 = scale_back_f(t0, **s_args)  # Call with kwargs
-
     # (B)xCxHxW -> (B)xHxWxC
     t0 = t0.permute(1, 2, 0) if t0.ndim == 3 else t0.permute(0,2,3,1)
-    img:np.ndarray = t0.numpy()
-    img = np.clip(img, 0, 255).astype(np.uint8)
-    
-    match img.ndim:
-        case 4:
-            img = [cv2.cvtColor(i, cv2.COLOR_RGB2BGR) if to_cv2 else i for i in img]
-        case 3:
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR) if to_cv2 else img
-    
-    return img
+    img = t0.numpy()
+    if scale_back_f is not None:
+        img = scale_back_f(img, **scale_back_kwargs)  # Call with kwargs
+    return _img_debatch(img=img, to_cv2=to_cv2)
 
-
-def img2tensor(img:np.ndarray, is_cv2:bool=True, scale_f:Optional[Callable[[torch.Tensor, Any], torch.Tensor]]=None, to_batch:bool=False, **kwargs) -> torch.Tensor:
+def img2tensor(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, scale_f:Optional[Callable[[torch.Tensor, Any], torch.Tensor]]=_IMG_NORMALIZE_, to_batch:bool=True, **scale_f_kwargs) -> torch.Tensor:
     """
-    Convert a img from np array to pytorch tensor
-   
+    Convert a COLOR img from np array to pytorch tensor
+
     Arg
     --
     - img: a numpy array for image
@@ -97,17 +120,33 @@ def img2tensor(img:np.ndarray, is_cv2:bool=True, scale_f:Optional[Callable[[torc
     A pytorch tensor for img with shape (CxHxW) if `to_batch` is `False`, (1xCxHxW) otherwise.
     - where C is RGB manner
     """
-    i = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if is_cv2 else img
-    #scale to 0~1
-    i = _TO_TENSOR_(i)
+    def convert_to_torch_tensor(x:np.ndarray)-> torch.Tensor:
+        tx = torch.from_numpy(x)
+        if tx.ndim == 4:
+            # with batch
+            tx =  tx.permute(0, 3, 1, 2)
+        elif tx.ndim == 3:
+            # single image
+            tx = tx.permute(2,0,1)
+        tx = tx.contiguous()
+        return tx
     
-    if scale_f is not None:
-        i = scale_f(i, **kwargs)
-    
-    if to_batch:
-        i = i.unsqueeze(0)
-
+    i = _to_dl_frame(img=img, is_cv2=is_cv2, to_batch=to_batch)
+    i = convert_to_torch_tensor(i)
+    if scale_f is not None :
+        i = scale_f(i, **scale_f_kwargs)
     return i
 
 
+def jnp2img(jimg:jnp.ndarray, scale_back_f:Optional[Callable[[np.ndarray, Any], np.ndarray]]=_TO_IMG_, to_cv2:bool=True, **scale_back_kwargs) -> np.ndarray|list[np.ndarray]:
+    img = jnp.array(jimg)
+    img = scale_back_f(img, **scale_back_kwargs) if scale_back_f is not None else img
+    return _img_debatch(img=img, to_cv2=to_cv2)
+    
+def img2jnp(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, device:tuple[str, int]=('gpu', 0), scale_f:Callable[[jnp.ndarray, Any], jnp.ndarray]=_IMG_NORMALIZE_, to_batch:bool=True, **scale_f_kwargs) -> jnp.ndarray:
+    i = _to_dl_frame(img=img, is_cv2=is_cv2, to_batch=to_batch)
+    i = jnp.array(i, device=jax.devices(device[0])[device[1]])
+    if scale_f is not None :
+        i = scale_f(i, **scale_f_kwargs)
+    return i
 
