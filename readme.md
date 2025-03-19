@@ -11,11 +11,13 @@ Manipulate/Visualization images using pure OpenCV, not alum/PIL including.
 Conversion between OpenCV images (NumPy arrays) and images from other frameworks with custmize scaling function:
 ### Convert image (np.ndarray) to framework 
   
+  Default normalize setting: $/255$
+  
+  If you want to convert a batch of images, please compose the image as a list of np.ndarray.
+  
   - PyTorch torch.Tensor: ```img2tensor()```
     - $H\times W \times C \to (B=1)\times C\times H \times W$
-    - default Normalize setting: $/255$ using ```torchvision.transforms.ToTensor()``` to implement
-    - If want to pass a batch of images, please compose the image as a list of np.ndarray.
-  
+    
   - jax jax.numpy.ndarray : ```img2jnp()```
     - jax hold same axis order for single image as opencv $H\times W\times C$  
     - jnp.array(img)
@@ -32,7 +34,7 @@ The defualt scale-back function is
 _TO_IMG_ = lambda x: np.clip(x, 0, 1)*255
 ```
   - PyTorch torch.Tensor: ```tensor2img()```
-  - jax jax.numpy.ndarray: ```jnp2img()```
+  - jax: jax.numpy.ndarray: ```jnp2img()```
 
 
 
