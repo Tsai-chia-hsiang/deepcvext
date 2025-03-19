@@ -40,6 +40,7 @@ def _to_dl_frame(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, to_batch:boo
 
 def _img_debatch(img:np.ndarray, to_cv2:bool=True) -> list[np.ndarray]|np.ndarray:
       img = np.clip(img, 0, 255).astype(np.uint8)
+      img = img.squeeze()
       match img.ndim:
         case 4:
             return [cv2.cvtColor(i, cv2.COLOR_RGB2BGR) if to_cv2 else i for i in img]
