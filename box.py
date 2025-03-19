@@ -2,7 +2,19 @@ import numpy as np
 import torch
 import math
 from typing import Literal
-from .utils import to_batch
+
+def boxes_to_batch(arr:np.ndarray|list|torch.Tensor)->np.ndarray|torch.Tensor:
+    a = arr 
+    if isinstance(arr, list):
+        a = np.asarray(arr)
+    if a.ndim == 1:
+        if isinstance(arr, np.ndarray):
+            a = np.expand_dims(a, axis=0)
+        elif isinstance(a, torch.Tensor):
+            a = a.unsqueeze(0)
+        else:
+            raise NotImplementedError()
+    return a
 
 def _to_calculate_dtype(boxes:np.ndarray|list|torch.Tensor, batch:bool=True)->np.ndarray|torch.Tensor:
     b = boxes 
@@ -18,7 +30,7 @@ def _to_calculate_dtype(boxes:np.ndarray|list|torch.Tensor, batch:bool=True)->np
         raise NotImplementedError()
     
     if batch:
-        return to_batch(b)
+        return boxes_to_batch(b)
     
     return b
 
@@ -139,10 +151,10 @@ def xyxy2int(xyxy:np.ndarray|list|torch.Tensor) -> list:
             return math.ceil(x)
     
     xyxy_ = xyxy if not isinstance(xyxy, torch.Tensor) else xyxy.cpu().numpy()
-    return [[quantize(c, i) for i,c in enumerate(b)] for b in to_batch(xyxy_)]
+    return [[quantize(c, i) for i,c in enumerate(b)] for b in boxes_to_batch(xyxy_)]
 
 def box_geo_scale(xywh:torch.Tensor|np.ndarray, scale:float=1) -> torch.Tensor|np.ndarray:
-    xywh_ = to_batch(xywh)
+    xywh_ = boxes_to_batch(xywh)
     diag = (xywh_[:, 2]*scale)**2 + (xywh_[:, 3]*scale)**2
     if isinstance(diag, np.ndarray):
         return np.sqrt(diag)
