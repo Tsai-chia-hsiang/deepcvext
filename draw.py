@@ -55,17 +55,17 @@ def draw_boxes(img:np.ndarray, xyxy:list[list]|np.ndarray, color:Iterable[tuple[
         if li is not None:
             cv2.putText(img, li,(b[0], b[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, ci, thickness=text_thickness)
 
-def draw_segmentation_map(labels:np.ndarray, target_cids:Iterable[int]=None) -> np.ndarray:
+def draw_segmentation_map(labels:np.ndarray, target_cids:Iterable[int]=None, cid_color_map:dict[int, tuple[int,int,int]]=None) -> np.ndarray:
     global _Ccolors
     color_map = np.zeros((*labels.shape[:2], 3), dtype=np.uint8)  # Color image
     
     t = target_cids if target_cids is not None else np.unique(labels).tolist()
     
-    if _Ccolors is None:
+    if cid_color_map is None and _Ccolors is None:
         _ = np.random.default_rng(42)
         _Ccolors = np.random.randint(0, 256, size=(_MAX_CLASSES, 3), dtype=np.uint8)
-
+    
     for  i in t:
-        color_map[labels == i] = _Ccolors[i%_MAX_CLASSES]
+        color_map[labels == i] = _Ccolors[i%_MAX_CLASSES] if cid_color_map is None else cid_color_map[i]
     
     return color_map
