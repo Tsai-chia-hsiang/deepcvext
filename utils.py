@@ -1,20 +1,6 @@
 import numpy as np
 import cv2
 from typing import Optional
-import torch
-
-def to_batch(arr:np.ndarray|list|torch.Tensor)->np.ndarray|torch.Tensor:
-    a = arr 
-    if isinstance(arr, list):
-        a = np.asarray(arr)
-    if a.ndim == 1:
-        if isinstance(arr, np.ndarray):
-            a = np.expand_dims(a, axis=0)
-        elif isinstance(a, torch.Tensor):
-            a = a.unsqueeze(0)
-        else:
-            raise NotImplementedError()
-    return a
 
 def find_gathered_places(series, threshold=2.0):
     series = np.array(series)
