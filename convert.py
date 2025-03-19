@@ -2,7 +2,6 @@ import torch
 from torchvision import transforms as T
 import numpy as np
 import cv2
-
 try:
     import jax
     import jax.numpy as jnp
@@ -17,14 +16,16 @@ __all__ = ["tensor2img", "img2tensor"]
 _IMG_NORMALIZE_= lambda x: x/255
 _TO_IMG_ = lambda x: np.clip(x, 0, 1)*255
 
-def cvtcolor_to_dl(img:np.ndarray)->np.ndarray:
-    if img.ndim == 3 and img.shape[-1] == 3:
-        return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    else:
-        # gray scale:
-        return np.expand_dims(img, axis=-1)  
-    
 def _to_dl_frame(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, to_batch:bool=True)->np.ndarray:
+    
+    def cvtcolor_to_dl(img:np.ndarray)->np.ndarray:
+        if img.ndim == 3 and img.shape[-1] == 3:
+            return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        else:
+            # gray scale:
+            return np.expand_dims(img, axis=-1)  
+        
+    
     if isinstance(img, list):
         i = np.stack([cvtcolor_to_dl(img_i) if is_cv2 else img_i for img_i in img], axis=0)
     elif isinstance(img, np.ndarray):
@@ -32,8 +33,9 @@ def _to_dl_frame(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, to_batch:boo
         i = cvtcolor_to_dl(img) if is_cv2 else img
     else:
         raise NotImplementedError(f"no {type(img)} such a class support")
-    if to_batch:
+    if to_batch and i.ndim == 3:
         i = np.expand_dims(i, axis=0)
+        
     return i.astype(np.float32)
 
 def _img_debatch(img:np.ndarray, to_cv2:bool=True) -> list[np.ndarray]|np.ndarray:
@@ -44,7 +46,6 @@ def _img_debatch(img:np.ndarray, to_cv2:bool=True) -> list[np.ndarray]|np.ndarra
         case 3:
             return cv2.cvtColor(img, cv2.COLOR_RGB2BGR) if to_cv2 else img
     
-
 def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[np.ndarray, Any], np.ndarray]]=_TO_IMG_, to_cv2:bool=True, **scale_back_kwargs) -> np.ndarray|list[np.ndarray]:
 
     """
@@ -136,7 +137,6 @@ def img2tensor(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, scale_f:Option
     if scale_f is not None :
         i = scale_f(i, **scale_f_kwargs)
     return i
-
 
 def jnp2img(jimg:jnp.ndarray, scale_back_f:Optional[Callable[[np.ndarray, Any], np.ndarray]]=_TO_IMG_, to_cv2:bool=True, **scale_back_kwargs) -> np.ndarray|list[np.ndarray]:
     img = jnp.array(jimg)
