@@ -1,42 +1,48 @@
 import numpy as np
-import cv2
-from typing import Optional
+from typing import Literal
+import torch
+try:
+    import jax.numpy as jnp
+    import jaxlib
+except:
+    pass
 
-def find_gathered_places(series, threshold=2.0):
-    series = np.array(series)
-    
-    # Compute Z-score (standardized values)
-    mean = np.mean(series)
-    std = np.std(series)
-    z_scores = (series - mean) / std  # Standardization
-    
-    # Find indices where the absolute Z-score is above threshold (outliers)
-    gathered_indices = np.where(np.abs(z_scores) >= threshold)[0]
 
-    return gathered_indices # Return indices and values
+FRAMEWORK_DTYPE_MAP = {
+    'np':{
+        'int':np.int32,
+        'long':np.int64,
+        'float':np.float32,
+        'double':np.float64,
+        'bool':np.bool
+    },
+    'torch':{
+        'int':torch.int32,
+        'long':torch.long,
+        'float':torch.float32,
+        'double':torch.float64,
+        'bool':torch.bool
+    },
+    'jnp':{
+        'int':jnp.int32,
+        'long':jnp.int16,
+        'float':jnp.float32,
+        'double':jnp.float64,
+        'bool':jnp.bool
+    }
+}
 
-def connected_components(binary_map:np.ndarray, gthr:Optional[float]=None)->tuple[int, np.ndarray, np.ndarray|None, np.ndarray|None]:
-    """
-    Returns
-    --
-    A tuple: 
-    - First 2 are the output from `cv2.connectedComponents()`
-        - 0. num_labels
-        - 1. connected components map 
-    - Last 2:
-        - if gthr (gathering z-score threshold) is given (i.e. is not `None`):
-            - 2. relatively densed components according to the gthr
-            - 3. element number for each components
-        - Otherwise: `(np.ndarray, None, None)` 
-            - 2. None
-            - 3. None
-    """
-    b_map = (binary_map > 0).astype(np.uint8)
-    num_labels, labels = cv2.connectedComponents(b_map)   
-    if gthr is None :
-        return num_labels, labels, None, None
-    else:
-        cluster_sizes = np.bincount(labels.flatten())[1:]
-        gather = find_gathered_places(series=cluster_sizes, threshold=gthr)+1
+def as_type(arr:np.ndarray|torch.Tensor|jnp.ndarray, dtype:Literal['int','long', 'float', 'double', 'bool'])->np.ndarray|torch.Tensor|jnp.ndarray:
 
-        return num_labels, labels, gather, cluster_sizes 
+    match type(arr):
+        case np.ndarray:
+            return arr.astype(dtype=FRAMEWORK_DTYPE_MAP['np'][dtype])
+        case torch.Tensor:
+            return arr.to(dtype=FRAMEWORK_DTYPE_MAP['torch'][dtype])
+        case jnp.ndarray:
+            return arr.astype(dtype=FRAMEWORK_DTYPE_MAP['jnp'][dtype])
+        case jaxlib.xla_extension.ArrayImpl:
+            return arr.astype(dtype=FRAMEWORK_DTYPE_MAP['jnp'][dtype])
+        case _:
+            raise NotImplementedError(f"{type(arr)} is not support.")
+
