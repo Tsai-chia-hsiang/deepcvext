@@ -89,16 +89,22 @@ class BinaryMap_Measurer():
     @staticmethod
     def pr_f1(confusion_matrix:dict[str, np.ndarray|torch.Tensor|jnp.ndarray]) -> dict[str, np.ndarray|torch.Tensor|jnp.ndarray]:
         
+        given_type = type(confusion_matrix['tp'])
+        
         def safe_div(numerator:np.ndarray|torch.Tensor|jnp.ndarray, denominator:np.ndarray|torch.Tensor|jnp.ndarray)->np.ndarray:
             
             def framework_a_zero(a:np.ndarray|torch.Tensor|jnp.ndarray):
-                match type(a):
+                match given_type:
                     case np.ndarray:
                         return np.array(0, dtype=np.float32)
                     case torch.Tensor:
-                        return torch.zeros(0, dtype=torch.float32, device=a.device)
+                        return torch.tensor(0, dtype=torch.float32, device=a.device)
                     case jnp.ndarray:
-                        return jnp.zeros(0, dtype=jnp.float32)
+                        return jnp.array(0, dtype=jnp.float32)
+                    case jaxlib.xla_extension.ArrayImpl:
+                        return jnp.array(0, dtype=jnp.float32)
+                    case _:
+                        raise NotImplementedError(f"{given_type} not support")
             
             return numerator/denominator if denominator > 0 else framework_a_zero(numerator)
         
@@ -130,6 +136,9 @@ class BinaryMap_Measurer():
         return M
  
     def _register_framework(self, a:np.ndarray|torch.Tensor|jnp.ndarray):
+        """
+        Runtime type register
+        """
         self.framework = type(a)
         match self.framework:
             case np.ndarray:
@@ -147,24 +156,25 @@ class BinaryMap_Measurer():
             case _:
                 raise NotImplementedError(f"{type(self.framework)} is not support.")
 
-    def sample_accumulate(self, pred:np.ndarray|torch.Tensor|jnp.ndarray, gt:np.ndarray|torch.Tensor|jnp.ndarray):
+    def sample_accumulate(self, pred:np.ndarray|torch.Tensor|jnp.ndarray, gt:np.ndarray|torch.Tensor|jnp.ndarray)->dict[str, np.ndarray|torch.Tensor|jnp.ndarray]:
         """
         accumulate (logging) the precision, recall, f1, acc, tn-rate 
         for this sample to self._overall_metrics
 
         If all samples are logged by this function into self._overall_metrics,
         call self.mean_metrics() to get mean-{metrics} dictionary
+
+        Return
+        --
+        Confusion matrix dictionary of this sample
         """
         if self.framework is None:
             self._register_framework(a=pred)
 
         assert self.framework == type(pred)
-           
-        a_sample_metrics = BinaryMap_Measurer.pr_f1(
-            confusion_matrix=BinaryMap_Measurer.confusion_masks(
-                pred=pred, gt=gt
-            )
-        )
+
+        confusion_matrix = BinaryMap_Measurer.confusion_masks(pred=pred, gt=gt)
+        a_sample_metrics = BinaryMap_Measurer.pr_f1(confusion_matrix)
         
         for k in self._overall_metrics:
             v = self.unsqueeze(a_sample_metrics[k])
@@ -172,13 +182,17 @@ class BinaryMap_Measurer():
                 self._overall_metrics[k] = v
                 continue
             self._overall_metrics[k] = self.concatenate((self._overall_metrics[k], v))
-    
+
+        return confusion_matrix
+
     def mean_metrics(self) -> dict[str, float]:
         """
         Using numpy as final protocol to get mean metrics
         - will first using np.asarray() to convert to np.ndarray then using .mean().
         """
+       
         mean_M = {f"mean-{k}":0.0 for k in self._overall_metrics}
         for k, v in self._overall_metrics.items():
+            
             mean_M[f"mean-{k}"] = float(np.asarray(v).mean()) if len(v) else 0.0
         return mean_M
