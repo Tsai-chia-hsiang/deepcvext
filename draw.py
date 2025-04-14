@@ -1,18 +1,19 @@
 import cv2
 import numpy as np
-from typing import  Iterable
+from typing import  Iterable, Optional
 from .box import xyxy2int
 
 _MAX_CLASSES = 500 
 _Ccolors = None
 
-def canvas(imlist:list[np.ndarray], hbar:int=10, wbar:int=10, row:int=2, bar_color:tuple[int]=(0,0,0)) -> np.ndarray:
-    
+def canvas(imlist:list[np.ndarray], hbar:int=10, wbar:int=10, row:Optional[int]=None, bar_color:tuple[int]=(0,0,0)) -> np.ndarray:
+
+    row = row if row is not None else len(imlist)
     h = np.full((imlist[0].shape[0], hbar, 3), bar_color, dtype=np.uint8)
     w = np.full((wbar, imlist[0].shape[1]*row + hbar*(row-1), 3), bar_color, dtype=np.uint8)
 
     c = None
-    extra = len(imlist) % row
+    extra = len(imlist) % row 
     imlist_ = imlist
     if extra > 0:
         imlist_ = [i.copy() for i in imlist]
