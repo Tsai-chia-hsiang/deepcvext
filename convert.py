@@ -95,8 +95,7 @@ def img2tensor(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, scale_f:Option
 
     Arg
     --
-    - img: a numpy array for image
-        - note that this function is currently designed for single color img
+    - img: a numpy array for image or list of numpy array for batch images
     - is_cv2 (bool, Default True): wether the image is in OpenCV format : BGR
         - `True`: treate img as BGR
         - `False`: treate img as RGB
