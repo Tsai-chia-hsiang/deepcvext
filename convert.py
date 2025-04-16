@@ -9,7 +9,7 @@ __all__ = ["tensor2img", "img2tensor"]
 
 
 _IMG_NORMALIZE_= lambda x: x/255
-_TO_IMG_ = lambda x: np.clip(x, 0, 1)*255
+_TO_IMG_ = lambda x: torch.clamp(x, 0, 1)*255
 
 def _to_dl_frame(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, to_batch:bool=True)->np.ndarray:
     
@@ -42,7 +42,7 @@ def _img_debatch(img:np.ndarray, to_cv2:bool=True) -> list[np.ndarray]|np.ndarra
         case 3:
             return cv2.cvtColor(img, cv2.COLOR_RGB2BGR) if to_cv2 else img
     
-def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[np.ndarray, Any], np.ndarray]]=_TO_IMG_, to_cv2:bool=True, **scale_back_kwargs) -> np.ndarray|list[np.ndarray]:
+def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, Any], torch.Tensor]]=_TO_IMG_, to_cv2:bool=True, **scale_back_kwargs) -> np.ndarray|list[np.ndarray]:
 
     """
     Convert a PyTorch RGB tensor image to a NumPy uint8 image.
@@ -85,10 +85,9 @@ def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[np.ndarray, An
     t0 = timg.detach().cpu()
     # (B)xCxHxW -> (B)xHxWxC
     t0 = t0.permute(1, 2, 0) if t0.ndim == 3 else t0.permute(0,2,3,1)
-    img = t0.numpy()
     if scale_back_f is not None:
-        img = scale_back_f(img, **scale_back_kwargs)  # Call with kwargs
-    return _img_debatch(img=img, to_cv2=to_cv2)
+        t0 = scale_back_f(t0, **scale_back_kwargs)  # Call with kwargs
+    return _img_debatch(img=t0.numpy(), to_cv2=to_cv2)
 
 def img2tensor(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, scale_f:Optional[Callable[[torch.Tensor, Any], torch.Tensor]]=_IMG_NORMALIZE_, to_batch:bool=True, **scale_f_kwargs) -> torch.Tensor:
     """
