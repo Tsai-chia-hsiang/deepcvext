@@ -64,8 +64,8 @@ def draw_segmentation_map(labels:np.ndarray, target_cids:Iterable[int]=None, cid
     t = target_cids if target_cids is not None else np.unique(labels).tolist()
     
     if cid_color_map is None and _Ccolors is None:
-        _ = np.random.default_rng(42)
-        _Ccolors = np.random.randint(0, 256, size=(_MAX_CLASSES, 3), dtype=np.uint8)
+        rng = np.random.default_rng(42)
+        _Ccolors = rng.integers(low=0, high=256, size=(_MAX_CLASSES, 3), dtype=np.uint8)
     
     for  i in t:
         color_map[labels == i] = _Ccolors[i%_MAX_CLASSES] if cid_color_map is None else cid_color_map[i]
