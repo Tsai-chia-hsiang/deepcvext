@@ -9,8 +9,12 @@ _Ccolors = None
 def canvas(imlist:list[np.ndarray], hbar:int=10, wbar:int=10, row:Optional[int]=None, bar_color:tuple[int]=(0,0,0)) -> np.ndarray:
 
     row = row if row is not None else len(imlist)
-    h = np.full((imlist[0].shape[0], hbar, 3), bar_color, dtype=np.uint8)
-    w = np.full((wbar, imlist[0].shape[1]*row + hbar*(row-1), 3), bar_color, dtype=np.uint8)
+    im_color_channel = imlist[0].shape[-1]
+    
+    assert im_color_channel < 5 and im_color_channel > 3
+    bc = bar_color if  im_color_channel == 3 else (*bar_color, 255)
+    h = np.full((imlist[0].shape[0], hbar, im_color_channel), bc, dtype=np.uint8)
+    w = np.full((wbar, imlist[0].shape[1]*row + hbar*(row-1), im_color_channel), bc, dtype=np.uint8)
 
     c = None
     extra = len(imlist) % row 
@@ -26,6 +30,7 @@ def canvas(imlist:list[np.ndarray], hbar:int=10, wbar:int=10, row:Optional[int]=
         to_cat = []
         imgs = [j for j in imlist_[i:i+row]]
         for ri in range(len(imgs)):
+            assert imgs[ri].shape[-1] == im_color_channel, "Require each image has same color channel (bgr or bgra)"
             to_cat.append(imgs[ri])
             if ri< len(imgs) - 1:
                 to_cat.append(h)
