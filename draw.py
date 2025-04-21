@@ -12,7 +12,15 @@ def canvas(imlist:list[np.ndarray], hbar:int=10, wbar:int=10, row:Optional[int]=
     im_color_channel = imlist[0].shape[-1]
     
     assert im_color_channel < 5 and im_color_channel > 3
-    bc = bar_color if  im_color_channel == 3 else (*bar_color, 255)
+    bc = bar_color  
+    if len(bc) != im_color_channel:
+        if im_color_channel == 3 and len(bc) == 4:
+            bc = bar_color[:-1]
+        elif im_color_channel == 4 and len(bc) == 3:
+            bc = (*bar_color, 255)
+        else:
+            raise ValueError("Please give the same color format (bgr, bgra) for bar color with imlist")
+    
     h = np.full((imlist[0].shape[0], hbar, im_color_channel), bc, dtype=np.uint8)
     w = np.full((wbar, imlist[0].shape[1]*row + hbar*(row-1), im_color_channel), bc, dtype=np.uint8)
 
