@@ -8,7 +8,7 @@ _Ccolors = None
 
 def canvas(imlist:list[np.ndarray], hbar:int=10, wbar:int=10, row:Optional[int]=None, bar_color:tuple[int]=(0,0,0)) -> np.ndarray:
 
-    row = row if row is not None else len(imlist)
+    row = min(row, len(imlist)) if row is not None else len(imlist)
     im_color_channel = imlist[0].shape[-1]
     
     assert im_color_channel <= 4 and im_color_channel >= 3

@@ -15,7 +15,7 @@ def find_gathered_places(series, threshold=2.0):
     z_scores = (series - mean) / std  # Standardization
     
     # Find indices where the absolute Z-score is above threshold (outliers)
-    gathered_indices = np.where(np.abs(z_scores) >= threshold)[0]
+    gathered_indices = np.where(z_scores >= threshold)[0]
 
     return gathered_indices # Return indices and values
 
