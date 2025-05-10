@@ -2,16 +2,16 @@ import numpy as np
 from typing import Literal, Optional
 import torch
 import cv2
-from . import FRAMEWORK_DTYPE_MAP
+from . import DTYPE_MAP
 
 
 def as_type(arr:np.ndarray|torch.Tensor, dtype:Literal['int','long', 'float', 'double', 'bool'])->np.ndarray|torch.Tensor:
 
     match type(arr):
         case np.ndarray:
-            return arr.astype(dtype=FRAMEWORK_DTYPE_MAP['np'][dtype])
+            return arr.astype(dtype=DTYPE_MAP['np'][dtype])
         case torch.Tensor:
-            return arr.to(dtype=FRAMEWORK_DTYPE_MAP['torch'][dtype])
+            return arr.to(dtype=DTYPE_MAP['torch'][dtype])
         case _:
             raise NotImplementedError(f"{type(arr)} is not support.")
 

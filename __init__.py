@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from .convert import *
 
-FRAMEWORK_DTYPE_MAP = {
+DTYPE_MAP = {
     'np':{
         'int':np.int32,
         'long':np.int64,
