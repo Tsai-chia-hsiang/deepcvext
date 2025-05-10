@@ -1,9 +1,7 @@
 import torch
-from torchvision import transforms as T
 import numpy as np
 import cv2
-
-from typing import Callable, Any, Optional, Literal
+from typing import Callable, Any, Optional
 
 __all__ = ["tensor2img", "img2tensor"]
 
@@ -131,21 +129,4 @@ def img2tensor(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, scale_f:Option
     if scale_f is not None :
         i = scale_f(i, **scale_f_kwargs)
     return i
-
-try:
-    import jax
-    import jax.numpy as jnp
-    def jnp2img(jimg:jnp.ndarray, scale_back_f:Optional[Callable[[np.ndarray, Any], np.ndarray]]=_TO_IMG_, to_cv2:bool=True, **scale_back_kwargs) -> np.ndarray|list[np.ndarray]:
-        img = jnp.array(jimg)
-        img = scale_back_f(img, **scale_back_kwargs) if scale_back_f is not None else img
-        return _img_debatch(img=img, to_cv2=to_cv2)
-        
-    def img2jnp(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, device:tuple[str, int]=('gpu', 0), scale_f:Callable[[jnp.ndarray, Any], jnp.ndarray]=_IMG_NORMALIZE_, to_batch:bool=True, **scale_f_kwargs) -> jnp.ndarray:
-        i = _to_dl_frame(img=img, is_cv2=is_cv2, to_batch=to_batch)
-        i = jnp.array(i, device=jax.devices(device[0])[device[1]])
-        if scale_f is not None :
-            i = scale_f(i, **scale_f_kwargs)
-        return i
-except ImportError:
-    pass
 
