@@ -2,19 +2,17 @@ import numpy as np
 import torch
 import math
 from typing import Literal
-from .utils import as_type
+from .utils import astype, add_batch
 
 def boxes_to_batch(arr:np.ndarray|list|torch.Tensor)->np.ndarray|torch.Tensor:
+    
     a = arr 
     if isinstance(arr, list):
         a = np.asarray(arr)
+
     if a.ndim == 1:
-        if isinstance(arr, np.ndarray):
-            a = np.expand_dims(a, axis=0)
-        elif isinstance(a, torch.Tensor):
-            a = a.unsqueeze(0)
-        else:
-            raise NotImplementedError()
+        a = add_batch(a)
+    
     return a
 
 def _to_calculate_dtype(boxes:np.ndarray|list|torch.Tensor, batch:bool=True)->np.ndarray|torch.Tensor:
@@ -22,7 +20,7 @@ def _to_calculate_dtype(boxes:np.ndarray|list|torch.Tensor, batch:bool=True)->np
     b = boxes 
     if isinstance(boxes, list) :
         b = np.asarray(boxes, dtype=np.float32)
-    b = as_type(b, 'float')
+    b = astype(b, 'float')
 
     if batch:
         return boxes_to_batch(b)
