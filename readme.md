@@ -5,7 +5,7 @@ The handmade extension corporate with OpenCV and some Python native libraries fo
 
 Manipulate/Visualization images using pure OpenCV, not alum/PIL including. 
 - Ensure non-deeplearning framework part of image processes in OpenCV platform.
-  - But maybe some floating point error or numpy behavior still different from C++. So... can view this as just a fun side project if you really want everything align to C++ operation.
+  - But maybe some floating point error or numpy behavior still different from C++. So... can view this as just a fun side project if you really want everything align to OpenCV++ operation.
 
 ## [convert.py](./convert.py): 
 Conversion between OpenCV images (NumPy arrays) and images from other frameworks with custmize scaling function:
@@ -18,12 +18,6 @@ Conversion between OpenCV images (NumPy arrays) and images from other frameworks
   - PyTorch torch.Tensor: ```img2tensor()```
     - $H\times W \times C \to (B=1)\times C\times H \times W$
     
-  - jax jax.numpy.ndarray : ```img2jnp()```
-    - jax hold same axis order for single image as opencv $H\times W\times C$  
-    - jnp.array(img)
-    - Note that you need to specific the device since jax.array() will automatically map the array into device
-      - Set from `device` argument: ```tuple[str, int]```
-      - default is ```('gpu', 0)```
   
 ### Convert framework to image (np.ndarray) 
 If given a batch images ($N_{dim} = 4$), will return list of np.ndarray, each element of returned list is the corresponding image.
@@ -34,8 +28,6 @@ The defualt scale-back function is
 _TO_IMG_ = lambda x: np.clip(x, 0, 1)*255
 ```
   - PyTorch torch.Tensor: ```tensor2img()```
-  - jax: jax.numpy.ndarray: ```jnp2img()```
-
 
 
 ## [box.py](./box.py): Bounding box (bbox) tools, support bboxes in:
@@ -52,7 +44,7 @@ I have to confess this is redundant as library. I write this lib just for my mas
 Pure OpenCV visualization method
 - ```canvas()```:
   - To demostrate image in grid for the give row 
-  - Eequire all image at same size
+  - Require all image at same size
 - ```draw_box()```:
   - bboxes visualization
     - But I find Ultralytics and torchvision also provide same function as well after I design this, so kind of redundant as well.
