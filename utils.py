@@ -5,7 +5,7 @@ import cv2
 from . import DTYPE_MAP
 
 
-def as_type(arr:np.ndarray|torch.Tensor, dtype:Literal['int','long', 'float', 'double', 'bool'])->np.ndarray|torch.Tensor:
+def astype(arr:np.ndarray|torch.Tensor, dtype:Literal['int','long', 'float', 'double', 'bool'])->np.ndarray|torch.Tensor:
 
     match type(arr):
         case np.ndarray:
@@ -13,7 +13,16 @@ def as_type(arr:np.ndarray|torch.Tensor, dtype:Literal['int','long', 'float', 'd
         case torch.Tensor:
             return arr.to(dtype=DTYPE_MAP['torch'][dtype])
         case _:
-            raise NotImplementedError(f"{type(arr)} is not support.")
+            raise TypeError(f"{type(arr)} is not support.")
+
+def add_batch(arr:np.ndarray|torch.Tensor)->np.ndarray|torch.Tensor:
+    match type(arr):
+        case np.ndarray:
+            return np.expand_dims(arr, 0)
+        case torch.Tensor:
+            return arr.unsqueeze(0)
+        case _:
+            raise TypeError(f"{type(arr)} is not support.")
 
 # [src channel][target channel]
 _cvtflag = (
