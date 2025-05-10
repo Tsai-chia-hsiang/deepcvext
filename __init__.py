@@ -8,7 +8,7 @@ DTYPE_MAP = {
         'long':np.int64,
         'float':np.float32,
         'double':np.float64,
-        'bool':np.bool
+        'bool':np.bool_
     },
     'torch':{
         'int':torch.int32,
@@ -19,3 +19,13 @@ DTYPE_MAP = {
     }
 }
 
+AXIS_MAP = {
+    np.ndarray:{
+        'axis': 'axis',
+        'keepdims': 'keepdims'
+    },
+    torch.Tensor:{
+        'axis': 'dim',
+        'keepdims': 'keepdim'
+    }
+}
