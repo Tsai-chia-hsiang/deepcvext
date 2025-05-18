@@ -2,7 +2,8 @@ import numpy as np
 import torch
 import math
 from typing import Literal
-from .utils import astype, add_batch
+from .utils import add_batch
+from .dtype import astype
 
 def boxes_to_batch(arr:np.ndarray|list|torch.Tensor)->np.ndarray|torch.Tensor:
     
