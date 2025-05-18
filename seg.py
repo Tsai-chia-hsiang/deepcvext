@@ -2,7 +2,8 @@ import numpy as np
 import cv2
 from typing import Optional
 import torch
-from .utils import astype
+from .dtype import astype
+from . import AXIS_MAP
 
 def find_gathered_places(series, threshold=2.0):
     series = np.array(series)
@@ -57,10 +58,11 @@ def binary_dice_score(pred_map:np.ndarray|torch.Tensor, gt_map:np.ndarray|torch.
     dice score : `2*|pred_map ^ gt_map|_0 / (|pred_map|_0 + |gt_map|_0)`
         - It will return as the given type (i.e. if np, then it return np; if torch tensor, it return a tensor with same device as both)
     """
+    assert pred_map.shape == gt_map.shape
     bool_pred = astype(pred_map > 0, 'int')
     bool_gt = astype(gt_map > 0, 'int')
-    sum_axis = (-2, -1)
-    u = bool_pred.sum(*sum_axis) + bool_gt.sum(*sum_axis)
-    i = (bool_pred*bool_gt).sum(*sum_axis)
+    sum_axis = {AXIS_MAP[type(bool_pred)]['axis']: (-2, -1)}
+    u = bool_pred.sum(**sum_axis) + bool_gt.sum(**sum_axis)
+    i = (bool_pred*bool_gt).sum(**sum_axis)
 
     return 2*i/(u+1e-10)
