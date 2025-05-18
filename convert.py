@@ -3,11 +3,18 @@ import numpy as np
 import cv2
 from typing import Callable, Any, Optional
 
-__all__ = ["tensor2img", "img2tensor"]
+from .dtype import astype, isdtype
 
+__all__ = ["tensor2img", "img2tensor"]
 
 _IMG_NORMALIZE_= lambda x: x/255
 _TO_IMG_ = lambda x: torch.clamp(x, 0, 1)*255
+
+def _MINMAX_(x:np.ndarray|torch.Tensor)->np.ndarray|torch.Tensor:
+    x_ = x
+    if not (isdtype(x, 'float') and  isdtype(x, 'double')):
+        x_ = astype(x, 'float') 
+    (x_-x_.min())/(x_.max() - x_.min() + 1e-10)
 
 def _to_dl_frame(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, to_batch:bool=True)->np.ndarray:
     
@@ -32,14 +39,27 @@ def _to_dl_frame(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, to_batch:boo
     return i.astype(np.float32)
 
 def _img_debatch(img:np.ndarray, to_cv2:bool=True) -> list[np.ndarray]|np.ndarray:
-      img = np.clip(img, 0, 255).astype(np.uint8)
-      img = img.squeeze()
-      match img.ndim:
-        case 4:
-            return [cv2.cvtColor(i, cv2.COLOR_RGB2BGR) if to_cv2 else i for i in img]
-        case 3:
-            return cv2.cvtColor(img, cv2.COLOR_RGB2BGR) if to_cv2 else img
     
+    img = np.clip(img, 0, 255).astype(np.uint8)
+    cvt_flag = cv2.COLOR_RGB2BGR if img.shape[-1] == 3 else None
+    
+    def _to_cv2_frame(i: np.ndarray)->np.ndarray:
+        if cvt_flag is None:
+            return i
+        return cv2.cvtColor(i, cvt_flag)
+
+    match img.ndim:
+        case 4: 
+            bi = [_to_cv2_frame(i) if to_cv2 else i for i in img]
+            if len(bi) == 1:
+                bi = bi[0]
+        case 3:
+            bi = _to_cv2_frame(img) if to_cv2 else img
+        case _:
+            raise NotImplementedError(f"(batched)imgs with {img.ndim} dim is not support")
+
+    return bi
+
 def tensor2img(timg:torch.Tensor, scale_back_f:Optional[Callable[[torch.Tensor, Any], torch.Tensor]]=_TO_IMG_, to_cv2:bool=True, **scale_back_kwargs) -> np.ndarray|list[np.ndarray]:
 
     """
@@ -130,3 +150,10 @@ def img2tensor(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, scale_f:Option
         i = scale_f(i, **scale_f_kwargs)
     return i
 
+def normalize_heatmap(heatmap:np.ndarray|torch.Tensor, pixelspace:bool=True, to_uint8:bool=True)->np.ndarray|torch.Tensor:
+    h = _MINMAX_(x=heatmap)
+    if pixelspace or to_uint8:
+        h = h*255
+    if to_uint8:
+        h = astype(arr=h, dtype='uint8')
+    return h
