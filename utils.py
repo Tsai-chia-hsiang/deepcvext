@@ -1,19 +1,10 @@
 import numpy as np
-from typing import Literal, Optional
+from typing import Optional
 import torch
 import cv2
-from . import DTYPE_MAP
-
-
-def astype(arr:np.ndarray|torch.Tensor, dtype:Literal['int','long', 'float', 'double', 'bool'])->np.ndarray|torch.Tensor:
-
-    match type(arr):
-        case np.ndarray:
-            return arr.astype(dtype=DTYPE_MAP['np'][dtype])
-        case torch.Tensor:
-            return arr.to(dtype=DTYPE_MAP['torch'][dtype])
-        case _:
-            raise TypeError(f"{type(arr)} is not support.")
+from .warning_msgs import _UNSUPPORT_TYPE_WARNING_
+from .convert import normalize_heatmap
+from .dtype import isdtype
 
 def add_batch(arr:np.ndarray|torch.Tensor)->np.ndarray|torch.Tensor:
     match type(arr):
@@ -22,7 +13,7 @@ def add_batch(arr:np.ndarray|torch.Tensor)->np.ndarray|torch.Tensor:
         case torch.Tensor:
             return arr.unsqueeze(0)
         case _:
-            raise TypeError(f"{type(arr)} is not support.")
+            raise TypeError(_UNSUPPORT_TYPE_WARNING_(arr))
 
 # [src channel][target channel]
 _cvtflag = (
@@ -33,19 +24,37 @@ _cvtflag = (
     (None, cv2.COLOR_BGRA2GRAY, None, cv2.COLOR_BGRA2BGR, None) # src: bgra
 )
 
-def cvtcolor(img:np.ndarray, to_channel:Optional[int]=None):
-    global _cvtflag
-    i = img.copy().astype(np.uint8)
-    if img.ndim == 2:
-        # binary img, first expand the channel dimension
-        i = np.expand_dims(i, axis=-1)
-    if to_channel is None:
-        return i
+def cvtcolor(img:np.ndarray|list[np.ndarray], to_channel:Optional[int]=None)->np.ndarray|list[np.ndarray]:
     
-    h,w,c = i.shape
+    def _cvtcolor_single(img0:np.ndarray)->np.ndarray:
+    
+        if isdtype(img0, 'uint8'):
+            i = img0
+        elif isdtype(img0, 'float') or isdtype(img0, 'double'):
+            i = normalize_heatmap(img)
+        elif isdtype(img0, 'long'):
+            assert img0.max() <= 255 and img0.min() >= 0
+            i = img0.astype(np.uint8)
+                
+            
+        if img.ndim == 2:
+            # binary img, first expand the channel dimension
+            i = np.expand_dims(i, axis=-1)
+        if to_channel is None:
+            return i
+        
+        h,w,c = i.shape
 
-    flag = _cvtflag[c][to_channel]
-    if flag is not None:
-        i = cv2.cvtColor(i, flag)
-    return i
+        flag = _cvtflag[c][to_channel]
+        if flag is not None:
+            i = cv2.cvtColor(i, flag)
+        return i
+
+    if isinstance(img, (list, tuple)):
+        return [_cvtcolor_single(img0=i) for i in img]
+    elif isinstance(img, np.ndarray):
+        return _cvtcolor_single(img0=img)
+    else:
+        raise TypeError(_UNSUPPORT_TYPE_WARNING_(x=img)+"for cvtcolor")
+
 
