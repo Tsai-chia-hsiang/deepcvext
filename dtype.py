@@ -25,7 +25,7 @@ DTYPE_MAP = {
 def isdtype(arr:np.ndarray|torch.Tensor, dtype:str):
     match type(arr):
         case np.ndarray:
-            return np.isdtype(arr, DTYPE_MAP['np'][dtype])
+            return np.isdtype(arr.dtype, DTYPE_MAP['np'][dtype])
         case torch.Tensor:
             return arr.dtype == DTYPE_MAP['torch'][dtype]
         case _:
