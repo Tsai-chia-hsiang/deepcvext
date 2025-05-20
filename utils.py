@@ -32,12 +32,11 @@ def cvtcolor(img:np.ndarray|list[np.ndarray], to_channel:Optional[int]=None)->np
             i = img0
         elif isdtype(img0, 'float') or isdtype(img0, 'double'):
             i = normalize_heatmap(img)
-        elif isdtype(img0, 'long'):
+        elif isdtype(img0, 'long') or isdtype(img0, 'int'):
             assert img0.max() <= 255 and img0.min() >= 0
             i = img0.astype(np.uint8)
-                
-            
-        if img.ndim == 2:
+                 
+        if img0.ndim == 2:
             # binary img, first expand the channel dimension
             i = np.expand_dims(i, axis=-1)
         if to_channel is None:
