@@ -12,9 +12,9 @@ _TO_IMG_ = lambda x: torch.clamp(x, 0, 1)*255
 
 def _MINMAX_(x:np.ndarray|torch.Tensor)->np.ndarray|torch.Tensor:
     x_ = x
-    if not (isdtype(x, 'float') and  isdtype(x, 'double')):
+    if not (isdtype(x, 'float') or  isdtype(x, 'double')):
         x_ = astype(x, 'float') 
-    (x_-x_.min())/(x_.max() - x_.min() + 1e-10)
+    return (x_-x_.min())/(x_.max() - x_.min() + 1e-10)
 
 def _to_dl_frame(img:np.ndarray|list[np.ndarray], is_cv2:bool=True, to_batch:bool=True)->np.ndarray:
     
